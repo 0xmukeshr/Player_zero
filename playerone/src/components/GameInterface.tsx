@@ -9,6 +9,17 @@ import { RecentActions } from './RecentActions';
 import { useSocket } from '../context/SocketContext';
 import { useAudio } from '../hooks/useAudio';
 
+// Dojo hooks
+import { useBuyAsset } from '../dojo/hooks/useBuyAsset';
+import { useSellAsset } from '../dojo/hooks/useSellAsset';
+import { useBurnAsset } from '../dojo/hooks/useBurnAsset';
+import { useSabotage } from '../dojo/hooks/useSabotage';
+import { useNextRound } from '../dojo/hooks/useNextRound';
+import { usePlayer } from '../dojo/hooks/usePlayer';
+import { useGame } from '../dojo/hooks/useGame';
+import { useMarket } from '../dojo/hooks/fetchMarket';
+import { AssetType } from '../zustand/store';
+
 interface GameInterfaceProps {
   onExitGame: () => void;
 }
@@ -77,6 +88,66 @@ export function GameInterface({ onExitGame }: GameInterfaceProps) {
 
   // Track if we've already requested game state
   const gameStateRequestedRef = useRef(false);
+
+  // Initialize Dojo hooks
+  const {
+    buyAssetState,
+    executeBuyAsset,
+    canBuyAsset,
+    resetBuyAssetState
+  } = useBuyAsset();
+
+  const {
+    sellAssetState,
+    executeSellAsset,
+    canSellAsset,
+    resetSellAssetState
+  } = useSellAsset();
+
+  const {
+    burnAssetState,
+    executeBurnAsset,
+    canBurnAsset,
+    resetBurnAssetState
+  } = useBurnAsset();
+
+  const {
+    sabotageState,
+    executeSabotage,
+    canSabotage,
+    resetSabotageState
+  } = useSabotage();
+
+  const {
+    nextRound,
+    resetNextRoundState,
+    isProcessing: nextRoundProcessing,
+    error: nextRoundError,
+    canAdvanceRound
+  } = useNextRound();
+
+  const {
+    player: dojoPlayer,
+    isLoading: playerLoading,
+    error: playerError,
+    refetch: refetchPlayer
+  } = usePlayer();
+
+  const {
+    currentGame: dojoGame,
+    createGame,
+    joinGame,
+    startGame: dojoStartGame,
+    isProcessing: gameProcessing,
+    error: gameError
+  } = useGame();
+
+  const {
+    market: dojoMarket,
+    isLoading: marketLoading,
+    error: marketError,
+    refetch: refetchMarket
+  } = useMarket();
   
   // Socket event listeners setup (only once)
   useEffect(() => {
@@ -266,7 +337,7 @@ export function GameInterface({ onExitGame }: GameInterfaceProps) {
     onExitGame();
   };
 
-  const handleAction = () => {
+  const handleAction = async () => {
     if (!currentPlayer || amount <= 0) return;
 
     const actionData = {
@@ -276,13 +347,111 @@ export function GameInterface({ onExitGame }: GameInterfaceProps) {
       targetPlayer: selectedAction === 'sabotage' ? targetPlayer : undefined
     };
 
+    // Convert resource to AssetType for Dojo hooks
+    const assetType: AssetType = selectedResource === 'gold' ? 'Gold' : 
+                                selectedResource === 'water' ? 'Water' : 'Oil';
+
+    try {
+      // Execute Dojo action based on selected action type
+      switch (selectedAction) {
+        case 'buy':
+          if (canBuyAsset) {
+            console.log(`🎮 Executing Dojo buy ${assetType}`);
+            await executeBuyAsset(assetType);
+            addNotification(`📤 Dojo: Buying ${assetType}...`);
+          } else {
+            console.warn('⚠️ Cannot execute buy asset via Dojo');
+          }
+          break;
+        
+        case 'sell':
+          if (canSellAsset) {
+            console.log(`🎮 Executing Dojo sell ${assetType}`);
+            await executeSellAsset(assetType);
+            addNotification(`📤 Dojo: Selling ${assetType}...`);
+          } else {
+            console.warn('⚠️ Cannot execute sell asset via Dojo');
+          }
+          break;
+        
+        case 'burn':
+          if (canBurnAsset) {
+            console.log(`🎮 Executing Dojo burn ${assetType}`);
+            await executeBurnAsset(assetType);
+            addNotification(`📤 Dojo: Burning ${assetType}...`);
+          } else {
+            console.warn('⚠️ Cannot execute burn asset via Dojo');
+          }
+          break;
+        
+        case 'sabotage':
+          if (canSabotage && targetPlayer) {
+            console.log(`🎮 Executing Dojo sabotage ${assetType} on ${targetPlayer}`);
+            // Note: The Dojo sabotage hook expects a player address, but we have player name
+            // We need to find the player's address from the target player name
+            const targetPlayerData = gameState?.players.find((p: any) => p.name === targetPlayer);
+            if (targetPlayerData?.address) {
+              await executeSabotage(targetPlayerData.address, assetType);
+              addNotification(`📤 Dojo: Sabotaging ${targetPlayer}'s ${assetType}...`);
+            } else {
+              console.warn('⚠️ Cannot find target player address for sabotage');
+              addNotification('⚠️ Cannot find target player address for Dojo sabotage');
+            }
+          } else {
+            console.warn('⚠️ Cannot execute sabotage via Dojo');
+          }
+          break;
+        
+        default:
+          console.warn(`⚠️ Unknown action type: ${selectedAction}`);
+      }
+    } catch (error) {
+      console.error(`❌ Error executing Dojo action ${selectedAction}:`, error);
+      addNotification(`❌ Dojo transaction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    // Also emit to socket system (alongside Dojo)
     if (socket) {
+      console.log('📡 Emitting socket action:', actionData);
       socket.emit('player-action', actionData);
     }
 
     // Reset form
     setAmount(1);
     setTargetPlayer('');
+  };
+
+  // Handle next round - integrate both Dojo and socket systems
+  const handleNextRound = async () => {
+    if (!dojoGame?.id) {
+      console.warn('⚠️ No Dojo game ID available for next round');
+      return;
+    }
+
+    try {
+      console.log('🎮 Executing Dojo next round...');
+      addNotification('📤 Dojo: Advancing to next round...');
+      
+      const result = await nextRound(dojoGame.id);
+      
+      if (result.success) {
+        addNotification('✅ Dojo: Round advanced successfully!');
+        // Optionally refresh market and player data
+        refetchMarket();
+        refetchPlayer();
+      } else {
+        addNotification(`❌ Dojo next round failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('❌ Error executing Dojo next round:', error);
+      addNotification(`❌ Dojo next round error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    // Also emit to socket system (if applicable)
+    if (socket) {
+      console.log('📡 Emitting socket next round...');
+      socket.emit('next-round');
+    }
   };
 
   // Loading state - show different messages based on what's missing
@@ -298,9 +467,17 @@ export function GameInterface({ onExitGame }: GameInterfaceProps) {
       loadingMessage = 'No game selected...';
       showRetryButton = true;
     } else if (!gameState) {
-      loadingMessage = 'Loading Game...';
+      loadingMessage = 'Loading Game State...';
       showRetryButton = true;
     }
+    
+    console.log('GameInterface Loading State:', {
+      contextLoaded,
+      connected,
+      effectiveGameId,
+      gameState: !!gameState,
+      loadingMessage
+    });
     
     return (
       <div className="min-h-screen bg-pixel-black scanlines p-6 font-pixel flex items-center justify-center">
@@ -531,6 +708,197 @@ export function GameInterface({ onExitGame }: GameInterfaceProps) {
               onTargetChange={setTargetPlayer}
               onConfirmAction={handleAction}
             />
+            
+            {/* Dojo Transaction Status Panel */}
+            {(buyAssetState.isLoading || sellAssetState.isLoading || burnAssetState.isLoading || sabotageState.isLoading || nextRoundProcessing ||
+              buyAssetState.error || sellAssetState.error || burnAssetState.error || sabotageState.error || nextRoundError ||
+              buyAssetState.txStatus === 'SUCCESS' || sellAssetState.txStatus === 'SUCCESS' || burnAssetState.txStatus === 'SUCCESS' || sabotageState.txStatus === 'SUCCESS') && (
+              <div className="bg-pixel-dark-gray pixel-panel border-pixel-gray p-3">
+                <h3 className="text-pixel-sm font-bold text-pixel-primary uppercase tracking-wider mb-2">Dojo Status</h3>
+                
+                {/* Buy Asset Status */}
+                {(buyAssetState.isLoading || buyAssetState.error || buyAssetState.txStatus) && (
+                  <div className="mb-2 p-2 bg-pixel-gray border-pixel-light-gray pixel-panel">
+                    <div className="text-pixel-xs font-bold text-pixel-primary">Buy Asset</div>
+                    {buyAssetState.isLoading && (
+                      <div className="text-pixel-xs text-pixel-warning">⏳ Processing...</div>
+                    )}
+                    {buyAssetState.error && (
+                      <div className="text-pixel-xs text-pixel-error">❌ {buyAssetState.error}</div>
+                    )}
+                    {buyAssetState.txStatus === 'SUCCESS' && (
+                      <div className="text-pixel-xs text-pixel-success">✅ Transaction successful!</div>
+                    )}
+                    {buyAssetState.txHash && (
+                      <div className="text-pixel-xs text-pixel-base-gray">TX: {buyAssetState.txHash.slice(0, 10)}...</div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Sell Asset Status */}
+                {(sellAssetState.isLoading || sellAssetState.error || sellAssetState.txStatus) && (
+                  <div className="mb-2 p-2 bg-pixel-gray border-pixel-light-gray pixel-panel">
+                    <div className="text-pixel-xs font-bold text-pixel-primary">Sell Asset</div>
+                    {sellAssetState.isLoading && (
+                      <div className="text-pixel-xs text-pixel-warning">⏳ Processing...</div>
+                    )}
+                    {sellAssetState.error && (
+                      <div className="text-pixel-xs text-pixel-error">❌ {sellAssetState.error}</div>
+                    )}
+                    {sellAssetState.txStatus === 'SUCCESS' && (
+                      <div className="text-pixel-xs text-pixel-success">✅ Transaction successful!</div>
+                    )}
+                    {sellAssetState.txHash && (
+                      <div className="text-pixel-xs text-pixel-base-gray">TX: {sellAssetState.txHash.slice(0, 10)}...</div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Burn Asset Status */}
+                {(burnAssetState.isLoading || burnAssetState.error || burnAssetState.txStatus) && (
+                  <div className="mb-2 p-2 bg-pixel-gray border-pixel-light-gray pixel-panel">
+                    <div className="text-pixel-xs font-bold text-pixel-primary">Burn Asset</div>
+                    {burnAssetState.isLoading && (
+                      <div className="text-pixel-xs text-pixel-warning">⏳ Processing...</div>
+                    )}
+                    {burnAssetState.error && (
+                      <div className="text-pixel-xs text-pixel-error">❌ {burnAssetState.error}</div>
+                    )}
+                    {burnAssetState.txStatus === 'SUCCESS' && (
+                      <div className="text-pixel-xs text-pixel-success">✅ Transaction successful!</div>
+                    )}
+                    {burnAssetState.txHash && (
+                      <div className="text-pixel-xs text-pixel-base-gray">TX: {burnAssetState.txHash.slice(0, 10)}...</div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Sabotage Status */}
+                {(sabotageState.isLoading || sabotageState.error || sabotageState.txStatus) && (
+                  <div className="mb-2 p-2 bg-pixel-gray border-pixel-light-gray pixel-panel">
+                    <div className="text-pixel-xs font-bold text-pixel-primary">Sabotage</div>
+                    {sabotageState.isLoading && (
+                      <div className="text-pixel-xs text-pixel-warning">⏳ Processing...</div>
+                    )}
+                    {sabotageState.error && (
+                      <div className="text-pixel-xs text-pixel-error">❌ {sabotageState.error}</div>
+                    )}
+                    {sabotageState.txStatus === 'SUCCESS' && (
+                      <div className="text-pixel-xs text-pixel-success">✅ Transaction successful!</div>
+                    )}
+                    {sabotageState.txHash && (
+                      <div className="text-pixel-xs text-pixel-base-gray">TX: {sabotageState.txHash.slice(0, 10)}...</div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Next Round Status */}
+                {(nextRoundProcessing || nextRoundError) && (
+                  <div className="mb-2 p-2 bg-pixel-gray border-pixel-light-gray pixel-panel">
+                    <div className="text-pixel-xs font-bold text-pixel-primary">Next Round</div>
+                    {nextRoundProcessing && (
+                      <div className="text-pixel-xs text-pixel-warning">⏳ Advancing round...</div>
+                    )}
+                    {nextRoundError && (
+                      <div className="text-pixel-xs text-pixel-error">❌ {nextRoundError}</div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Reset buttons */}
+                <div className="flex space-x-1 mt-2">
+                  {buyAssetState.error && (
+                    <button
+                      onClick={resetBuyAssetState}
+                      className="px-2 py-1 bg-pixel-secondary hover:bg-pixel-warning text-pixel-black font-bold text-pixel-xs pixel-btn border-pixel-black"
+                    >
+                      Clear Buy
+                    </button>
+                  )}
+                  {sellAssetState.error && (
+                    <button
+                      onClick={resetSellAssetState}
+                      className="px-2 py-1 bg-pixel-secondary hover:bg-pixel-warning text-pixel-black font-bold text-pixel-xs pixel-btn border-pixel-black"
+                    >
+                      Clear Sell
+                    </button>
+                  )}
+                  {burnAssetState.error && (
+                    <button
+                      onClick={resetBurnAssetState}
+                      className="px-2 py-1 bg-pixel-secondary hover:bg-pixel-warning text-pixel-black font-bold text-pixel-xs pixel-btn border-pixel-black"
+                    >
+                      Clear Burn
+                    </button>
+                  )}
+                  {sabotageState.error && (
+                    <button
+                      onClick={resetSabotageState}
+                      className="px-2 py-1 bg-pixel-secondary hover:bg-pixel-warning text-pixel-black font-bold text-pixel-xs pixel-btn border-pixel-black"
+                    >
+                      Clear Sabotage
+                    </button>
+                  )}
+                  {nextRoundError && (
+                    <button
+                      onClick={resetNextRoundState}
+                      className="px-2 py-1 bg-pixel-secondary hover:bg-pixel-warning text-pixel-black font-bold text-pixel-xs pixel-btn border-pixel-black"
+                    >
+                      Clear Round
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Dojo Player & Game Info Panel */}
+            {(dojoPlayer || dojoGame || dojoMarket) && (
+              <div className="bg-pixel-dark-gray pixel-panel border-pixel-gray p-3">
+                <h3 className="text-pixel-sm font-bold text-pixel-primary uppercase tracking-wider mb-2">Dojo Data</h3>
+                
+                {dojoPlayer && (
+                  <div className="mb-2 p-2 bg-pixel-gray border-pixel-light-gray pixel-panel">
+                    <div className="text-pixel-xs font-bold text-pixel-primary">Player</div>
+                    <div className="text-pixel-xs text-pixel-base-gray">Balance: {dojoPlayer.token_balance}</div>
+                    <div className="text-pixel-xs text-pixel-base-gray">Address: {dojoPlayer.address.slice(0, 10)}...</div>
+                  </div>
+                )}
+                
+                {dojoGame && (
+                  <div className="mb-2 p-2 bg-pixel-gray border-pixel-light-gray pixel-panel">
+                    <div className="text-pixel-xs font-bold text-pixel-primary">Game</div>
+                    <div className="text-pixel-xs text-pixel-base-gray">ID: {dojoGame.id}</div>
+                    <div className="text-pixel-xs text-pixel-base-gray">Round: {dojoGame.round}/{dojoGame.max_rounds}</div>
+                    <div className="text-pixel-xs text-pixel-base-gray">Active: {dojoGame.is_active ? 'Yes' : 'No'}</div>
+                  </div>
+                )}
+                
+                {dojoMarket && (
+                  <div className="mb-2 p-2 bg-pixel-gray border-pixel-light-gray pixel-panel">
+                    <div className="text-pixel-xs font-bold text-pixel-primary">Market</div>
+                    <div className="text-pixel-xs text-pixel-base-gray">Gold: {dojoMarket.gold_price}</div>
+                    <div className="text-pixel-xs text-pixel-base-gray">Water: {dojoMarket.water_price}</div>
+                    <div className="text-pixel-xs text-pixel-base-gray">Oil: {dojoMarket.oil_price}</div>
+                  </div>
+                )}
+                
+                {/* Data refresh buttons */}
+                <div className="flex space-x-1 mt-2">
+                  <button
+                    onClick={refetchPlayer}
+                    className="px-2 py-1 bg-pixel-accent hover:bg-pixel-success text-pixel-black font-bold text-pixel-xs pixel-btn border-pixel-black"
+                  >
+                    Refresh Player
+                  </button>
+                  <button
+                    onClick={refetchMarket}
+                    className="px-2 py-1 bg-pixel-accent hover:bg-pixel-success text-pixel-black font-bold text-pixel-xs pixel-btn border-pixel-black"
+                  >
+                    Refresh Market
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

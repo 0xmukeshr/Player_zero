@@ -35,14 +35,26 @@ export function useAudio() {
       if (!audio) {
         audio = new Audio(audioSrc);
         audio.volume = 0.3; // Lower volume for sound effects
+        
+        // Handle load errors gracefully
+        audio.addEventListener('error', (e) => {
+          console.debug(`Audio file not found or invalid: ${audioSrc}`);
+          // Remove from cache so we don't keep trying to play broken audio
+          audioCache.delete(audioSrc);
+        });
+        
         audioCache.set(audioSrc, audio);
       }
       
       // Reset and play
       audio.currentTime = 0;
       audio.play().catch(err => {
-        // Ignore autoplay policy errors
+        // Handle both autoplay policy errors and missing file errors
         console.debug('Audio play failed:', err);
+        // If it's a missing file error, remove from cache
+        if (err.name === 'NotSupportedError' || err.message.includes('not suitable')) {
+          audioCache.delete(audioSrc);
+        }
       });
     } catch (error) {
       console.debug('Audio error:', error);
