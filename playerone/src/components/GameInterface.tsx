@@ -89,65 +89,133 @@ export function GameInterface({ onExitGame }: GameInterfaceProps) {
   // Track if we've already requested game state
   const gameStateRequestedRef = useRef(false);
 
-  // Initialize Dojo hooks
-  const {
-    buyAssetState,
-    executeBuyAsset,
-    canBuyAsset,
-    resetBuyAssetState
-  } = useBuyAsset();
+  // Initialize Dojo hooks with error handling
+  let buyAssetState, executeBuyAsset, canBuyAsset, resetBuyAssetState;
+  let sellAssetState, executeSellAsset, canSellAsset, resetSellAssetState;
+  let burnAssetState, executeBurnAsset, canBurnAsset, resetBurnAssetState;
+  let sabotageState, executeSabotage, canSabotage, resetSabotageState;
+  let nextRound, resetNextRoundState, nextRoundProcessing, nextRoundError, canAdvanceRound;
+  let dojoPlayer, playerLoading, playerError, refetchPlayer;
+  let dojoGame, createGame, joinGame, dojoStartGame, gameProcessing, gameError;
+  let dojoMarket, marketLoading, marketError, refetchMarket;
 
-  const {
-    sellAssetState,
-    executeSellAsset,
-    canSellAsset,
-    resetSellAssetState
-  } = useSellAsset();
+  try {
+    const buyAssetHook = useBuyAsset();
+    buyAssetState = buyAssetHook.buyAssetState;
+    executeBuyAsset = buyAssetHook.executeBuyAsset;
+    canBuyAsset = buyAssetHook.canBuyAsset;
+    resetBuyAssetState = buyAssetHook.resetBuyAssetState;
+  } catch (error) {
+    console.error('Error initializing useBuyAsset:', error);
+    buyAssetState = { isLoading: false, error: null, txStatus: null, txHash: null };
+    executeBuyAsset = async () => {};
+    canBuyAsset = false;
+    resetBuyAssetState = () => {};
+  }
 
-  const {
-    burnAssetState,
-    executeBurnAsset,
-    canBurnAsset,
-    resetBurnAssetState
-  } = useBurnAsset();
+  try {
+    const sellAssetHook = useSellAsset();
+    sellAssetState = sellAssetHook.sellAssetState;
+    executeSellAsset = sellAssetHook.executeSellAsset;
+    canSellAsset = sellAssetHook.canSellAsset;
+    resetSellAssetState = sellAssetHook.resetSellAssetState;
+  } catch (error) {
+    console.error('Error initializing useSellAsset:', error);
+    sellAssetState = { isLoading: false, error: null, txStatus: null, txHash: null };
+    executeSellAsset = async () => {};
+    canSellAsset = false;
+    resetSellAssetState = () => {};
+  }
 
-  const {
-    sabotageState,
-    executeSabotage,
-    canSabotage,
-    resetSabotageState
-  } = useSabotage();
+  try {
+    const burnAssetHook = useBurnAsset();
+    burnAssetState = burnAssetHook.burnAssetState;
+    executeBurnAsset = burnAssetHook.executeBurnAsset;
+    canBurnAsset = burnAssetHook.canBurnAsset;
+    resetBurnAssetState = burnAssetHook.resetBurnAssetState;
+  } catch (error) {
+    console.error('Error initializing useBurnAsset:', error);
+    burnAssetState = { isLoading: false, error: null, txStatus: null, txHash: null };
+    executeBurnAsset = async () => {};
+    canBurnAsset = false;
+    resetBurnAssetState = () => {};
+  }
 
-  const {
-    nextRound,
-    resetNextRoundState,
-    isProcessing: nextRoundProcessing,
-    error: nextRoundError,
-    canAdvanceRound
-  } = useNextRound();
+  try {
+    const sabotageHook = useSabotage();
+    sabotageState = sabotageHook.sabotageState;
+    executeSabotage = sabotageHook.executeSabotage;
+    canSabotage = sabotageHook.canSabotage;
+    resetSabotageState = sabotageHook.resetSabotageState;
+  } catch (error) {
+    console.error('Error initializing useSabotage:', error);
+    sabotageState = { isLoading: false, error: null, txStatus: null, txHash: null };
+    executeSabotage = async () => {};
+    canSabotage = false;
+    resetSabotageState = () => {};
+  }
 
-  const {
-    player: dojoPlayer,
-    isLoading: playerLoading,
-    error: playerError,
-    refetch: refetchPlayer
-  } = usePlayer();
+  try {
+    const nextRoundHook = useNextRound();
+    nextRound = nextRoundHook.nextRound;
+    resetNextRoundState = nextRoundHook.resetNextRoundState;
+    nextRoundProcessing = nextRoundHook.isProcessing;
+    nextRoundError = nextRoundHook.error;
+    canAdvanceRound = nextRoundHook.canAdvanceRound;
+  } catch (error) {
+    console.error('Error initializing useNextRound:', error);
+    nextRound = async () => ({ success: false, error: 'Hook failed' });
+    resetNextRoundState = () => {};
+    nextRoundProcessing = false;
+    nextRoundError = null;
+    canAdvanceRound = false;
+  }
 
-  const {
-    currentGame: dojoGame,
-    createGame,
-    joinGame,
-    startGame: dojoStartGame,
-    isProcessing: gameProcessing,
-    error: gameError
-  } = useGame();
+  try {
+    const playerHook = usePlayer();
+    dojoPlayer = playerHook.player;
+    playerLoading = playerHook.isLoading;
+    playerError = playerHook.error;
+    refetchPlayer = playerHook.refetch;
+  } catch (error) {
+    console.error('Error initializing usePlayer:', error);
+    dojoPlayer = null;
+    playerLoading = false;
+    playerError = null;
+    refetchPlayer = () => {};
+  }
 
-  const {
-    market: dojoMarket,
-    isLoading: marketLoading,
-    error: marketError,
-    refetch: refetchMarket
-  } = useMarket();
+  try {
+    const gameHook = useGame();
+    dojoGame = gameHook.currentGame;
+    createGame = gameHook.createGame;
+    joinGame = gameHook.joinGame;
+    dojoStartGame = gameHook.startGame;
+    gameProcessing = gameHook.isProcessing;
+    gameError = gameHook.error;
+  } catch (error) {
+    console.error('Error initializing useGame:', error);
+    dojoGame = null;
+    createGame = async () => {};
+    joinGame = async () => {};
+    dojoStartGame = async () => {};
+    gameProcessing = false;
+    gameError = null;
+  }
+
+  try {
+    const marketHook = useMarket();
+    dojoMarket = marketHook.market;
+    marketLoading = marketHook.isLoading;
+    marketError = marketHook.error;
+    refetchMarket = marketHook.refetch;
+  } catch (error) {
+    console.error('Error initializing useMarket:', error);
+    dojoMarket = null;
+    marketLoading = false;
+    marketError = null;
+    refetchMarket = () => {};
+  }
   
   // Socket event listeners setup (only once)
   useEffect(() => {
