@@ -1,0 +1,14 @@
+[world]
+name = "Player Zero"
+seed = "playerzero1"
+
+[namespace]
+default = "playerzero"
+
+[env]
+rpc_url = "https://api.cartridge.gg/x/starknet/sepolia"
+
+
+
+[writers]
+"playerzero" = ["playerzero-actions"]
