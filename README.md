@@ -24,7 +24,7 @@ https://player-zero-final-1pot.vercel.app/
 
 2. **Navigate to the game directory**
    ```bash
-   cd playerone
+   cd player_zero
    ```
 
 3. **Install dependencies**
@@ -56,7 +56,6 @@ https://player-zero-final-1pot.vercel.app/
    npm run dev
    ```
 
-The game will be available at `http://localhost:5173`
 
 ## 🎯 Game Overview
 
@@ -288,7 +287,7 @@ GAMES Table:
 
 1. **Install dependencies**
    ```bash
-   cd playerone
+   cd player_zero
    npm install
    ```
 
