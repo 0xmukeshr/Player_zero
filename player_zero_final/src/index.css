@@ -1,0 +1,170 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Pixelated Theme Styles */
+@layer base {
+  * {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+  }
+  
+  html {
+    /* Prevent zoom on input focus on iOS */
+    -webkit-text-size-adjust: 100%;
+    /* Smooth scrolling */
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    font-family: 'Press Start 2P', cursive;
+    line-height: 1.6;
+    /* Prevent bounce scrolling on iOS */
+    overscroll-behavior: none;
+    /* Optimize touch scrolling */
+    -webkit-overflow-scrolling: touch;
+    /* Prevent text selection on mobile for better UX */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+  
+  /* Allow text selection for inputs and content areas */
+  input, textarea, [contenteditable] {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+  }
+  
+  /* Optimize tap targets for mobile - balanced for usability */
+  button, a, [role="button"] {
+    min-height: 40px;
+    min-width: 40px;
+    cursor: pointer;
+    /* Remove tap highlight on iOS */
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Responsive font scaling - balanced for readability */
+  @media (max-width: 640px) {
+    html {
+      font-size: 12px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    html {
+      font-size: 10px;
+    }
+  }
+}
+
+@layer components {
+  /* Pixelated Button Styles - balanced appearance */
+  .pixel-btn {
+    @apply relative font-bold text-sm uppercase tracking-wide;
+    border: 2px solid;
+    box-shadow: 
+      2px 2px 0px 0px currentColor,
+      2px 2px 0px 2px #000;
+    transition: all 0.1s ease;
+  }
+  
+  .pixel-btn:hover {
+    transform: translate(1px, 1px);
+    box-shadow: 
+      1px 1px 0px 0px currentColor,
+      1px 1px 0px 2px #000;
+  }
+  
+  .pixel-btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+  }
+  
+  /* Pixelated Panel Styles - reduced for less chunky appearance */
+  .pixel-panel {
+    border: 2px solid;
+    box-shadow: 
+      2px 2px 0px 0px #000,
+      inset 0.5px 0.5px 0px 0px rgba(255, 255, 255, 0.3);
+  }
+  
+  /* Pixelated Input Styles - balanced appearance */
+  .pixel-input {
+    @apply font-mono text-sm;
+    border: 2px solid;
+    box-shadow: 
+      inset 2px 2px 0px 0px rgba(0, 0, 0, 0.3),
+      inset -1px -1px 0px 0px rgba(255, 255, 255, 0.1);
+  }
+  
+  /* Pixelated Avatar - reduced for less chunky appearance */
+  .pixel-avatar {
+    border: 1px solid #000;
+    box-shadow: 
+      1px 1px 0px 0px #000,
+      inset 0.5px 0.5px 0px 0px rgba(255, 255, 255, 0.3);
+  }
+  
+  /* Pixelated Navigation - reduced for less chunky appearance */
+  .pixel-nav-item {
+    @apply relative;
+    border: 1px solid transparent;
+    transition: all 0.1s ease;
+  }
+  
+  .pixel-nav-item.active {
+    border-color: currentColor;
+    box-shadow: 
+      1px 1px 0px 0px #000,
+      inset 0.5px 0.5px 0px 0px rgba(255, 255, 255, 0.2);
+  }
+  
+  .pixel-nav-item:hover {
+    border-color: currentColor;
+    box-shadow: 
+      0.5px 0.5px 0px 0px #000,
+      inset 0.5px 0.5px 0px 0px rgba(255, 255, 255, 0.1);
+  }
+  
+  /* Pixelated Card - reduced for less chunky appearance */
+  .pixel-card {
+    border: 2px solid;
+    box-shadow: 
+      2px 2px 0px 0px #000,
+      inset 1px 1px 0px 0px rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+  }
+  
+  .pixel-card:hover {
+    transform: translate(-0.5px, -0.5px);
+    box-shadow: 
+      3px 3px 0px 0px #000,
+      inset 1px 1px 0px 0px rgba(255, 255, 255, 0.2);
+  }
+  
+  /* Pixelated Progress Bar - reduced for less chunky appearance */
+  .pixel-progress {
+    border: 1px solid #000;
+    box-shadow: inset 1px 1px 0px 0px rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Pixelated Notification - reduced for less chunky appearance */
+  .pixel-notification {
+    border: 1px solid;
+    box-shadow: 
+      2px 2px 0px 0px #000,
+      inset 0.5px 0.5px 0px 0px rgba(255, 255, 255, 0.2);
+  }
+  
+  /* Scanline Effect - Disabled for performance */
+  .scanlines {
+    /* Scanline effect disabled to improve performance */
+  }
+}

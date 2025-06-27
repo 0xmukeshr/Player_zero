@@ -4,6 +4,8 @@
 
 > A fully on-chain multiplayer strategy game built on Starknet where players trade resources, make strategic decisions, and compete for dominance in a dynamic market environment. All game actions are executed on-chain with real token rewards.
 
+## Play Ready
+https://player-zero-final-1pot.vercel.app/
 ## 🚀 Quick Start
 
 ### Prerequisites
