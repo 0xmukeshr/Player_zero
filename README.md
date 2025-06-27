@@ -19,7 +19,7 @@ https://player-zero-final-1pot.vercel.app/
 1. **Clone the repository**
    ```bash
    git clone https://github.com/0xmukeshr/Player_zero.git
-   cd playerzero
+   cd Player_zero/
    ```
 
 2. **Navigate to the game directory**
